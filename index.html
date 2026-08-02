@@ -1,0 +1,1851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Somesha M — Railway Signalling Engineer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy-950: #040914;
+    --navy-900: #0a1526;
+    --navy-800: #10223b;
+    --navy-700: #1c3554;
+    
+    /* Signal & Track System Colors */
+    --track: #1d4b73;
+    --track-glow: #00b0ff;
+    --signal-green: #00E676;
+    --signal-green-dim: rgba(0, 230, 118, 0.25);
+    --signal-amber: #FFC400;
+    --signal-red: #FF1744;
+    --cyan-glow: #00E5FF;
+    
+    --paper: #F5F6FA;
+    --paper-dim: #90A4AE;
+    
+    /* Technical Typography */
+    --mono: 'JetBrains Mono', monospace;
+    --disp: 'Space Grotesk', sans-serif;
+    --body: 'Inter', sans-serif;
+  }
+
+  * { 
+    box-sizing: border-box; 
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Audio & Visual Mode Controls floating top right */
+  .control-panel-group {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 100;
+    display: flex;
+    gap: 8px;
+  }
+
+  .audio-control-btn, .theme-mode-btn {
+    background: rgba(10, 21, 38, 0.85);
+    border: 1px solid var(--navy-700);
+    border-radius: 20px;
+    color: var(--paper-dim);
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    padding: 6px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+  }
+
+  .audio-control-btn.active, .theme-mode-btn.active {
+    border-color: var(--signal-green);
+    color: var(--signal-green);
+    box-shadow: 0 0 12px rgba(0, 230, 118, 0.4);
+  }
+
+  .audio-indicator-dot, .mode-indicator-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--paper-dim);
+  }
+
+  .audio-control-btn.active .audio-indicator-dot,
+  .theme-mode-btn.active .mode-indicator-dot {
+    background: var(--signal-green);
+    box-shadow: 0 0 6px var(--signal-green);
+  }
+
+  /* Smooth Scroll Behavior */
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--navy-950);
+    color: var(--paper);
+    font-family: var(--body);
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-snap-type: y mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    transition: background 0.5s ease;
+  }
+
+  /* Ambient Canvas Overlay for Headlight Sweep */
+  #fx-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .stage {
+    position: relative;
+    width: 100vw;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    background: radial-gradient(circle at 50% 50%, var(--navy-900) 0%, var(--navy-950) 100%);
+    overflow: hidden;
+    border-bottom: 1px solid rgba(28, 53, 84, 0.4);
+    padding: 40px 0 80px 0;
+    transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1), filter 0.5s ease;
+  }
+
+  .grid-overlay {
+    position: absolute; 
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0, 176, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 176, 255, 0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+    z-index: 1;
+    transition: transform 0.6s ease-out;
+  }
+
+  .stage.active .grid-overlay {
+    transform: scale(1.02);
+  }
+
+  .scene {
+    position: relative;
+    width: 100%;
+    max-width: 1000px;
+    height: 100%;
+    padding: 24px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3;
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  .rail-spine {
+    position: absolute;
+    left: 4%; 
+    right: 4%; 
+    top: 55%;
+    height: 4px;
+    background: var(--track);
+    transform: translateY(-50%) scaleX(0);
+    transform-origin: left center;
+    z-index: 2;
+    box-shadow: 0 0 8px rgba(0, 176, 255, 0.3);
+    transition: transform 1s cubic-bezier(0.19, 1, 0.22, 1), background 0.4s ease;
+    will-change: transform;
+  }
+
+  .stage.active .rail-spine { 
+    transform: translateY(-50%) scaleX(1); 
+    background: var(--track-glow);
+    box-shadow: 0 0 16px var(--track-glow);
+  }
+
+  /* SCENE 1 : INTRO */
+  .intro-layout {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 3;
+    width: 100%;
+    max-width: 850px;
+    text-align: center;
+    position: relative;
+    flex-direction: column;
+    padding-bottom: 50px;
+  }
+
+  .interlocking-sequencer {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    width: 100%;
+    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .animated-aspect-post {
+    width: 44px;
+    background: #111a2e;
+    border: 3px solid #233554;
+    border-radius: 22px;
+    padding: 8px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 10px rgba(0,0,0,0.9);
+  }
+
+  /* Lens Distortion SVG Filter Application */
+  .lens-bulb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #090f1d;
+    border: 2px solid #1c2d42;
+    transition: all 0.3s ease;
+    filter: url(#lens-glass-distortion);
+  }
+
+  .stage.active .lens-bulb.red-lens { animation: signalRedToggle 1.5s forwards; }
+  .stage.active .lens-bulb.amber-lens { animation: signalAmberToggle 2.5s forwards; }
+  .stage.active .lens-bulb.green-lens { animation: signalGreenToggle 3.8s forwards; }
+
+  @keyframes signalRedToggle {
+    0%, 70% { background: var(--signal-red); box-shadow: 0 0 20px var(--signal-red), inset 0 0 8px #fff; border-color: #ff8a9f; }
+    71%, 100% { background: #090f1d; box-shadow: none; border-color: #1c2d42; }
+  }
+  @keyframes signalAmberToggle {
+    0%, 70% { background: #090f1d; box-shadow: none; border-color: #1c2d42; }
+    71%, 88% { background: var(--signal-amber); box-shadow: 0 0 20px var(--signal-amber), inset 0 0 8px #fff; border-color: #ffe082; }
+    89%, 100% { background: #090f1d; box-shadow: none; border-color: #1c2d42; }
+  }
+  @keyframes signalGreenToggle {
+    0%, 88% { background: #090f1d; box-shadow: none; border-color: #1c2d42; }
+    89%, 100% { background: var(--signal-green); box-shadow: 0 0 25px var(--signal-green), inset 0 0 8px #fff; border-color: #b9f6ca; }
+  }
+
+  .sequencer-status-text {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--paper-dim);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    height: 16px;
+  }
+
+  .stage.active .sequencer-status-text::after {
+    content: 'ROUTE LOCKED: RED';
+    animation: statusTextCycle 3.8s steps(1) forwards;
+  }
+
+  @keyframes statusTextCycle {
+    0% { content: 'ROUTE LOCKED: RED'; color: var(--signal-red); }
+    71% { content: 'SWITCH THROW: IN PROGRESS'; color: var(--signal-amber); }
+    89% { content: 'TRACK CLEAR: PROCEED'; color: var(--signal-green); }
+  }
+
+  .intro-text-block { 
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.8s ease, visibility 0.8s ease;
+  }
+
+  .stage-intro-running .interlocking-sequencer { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .stage-intro-cleared .interlocking-sequencer { opacity: 0; transform: translate(-50%, -60%) scale(0.85); pointer-events: none; }
+  .stage-intro-cleared .intro-text-block { visibility: visible; opacity: 1; }
+
+  .name-reveal {
+    font-family: var(--disp);
+    font-weight: 700;
+    font-size: clamp(1.8rem, 7vw, 3.2rem);
+    letter-spacing: 0.05em;
+    margin: 8px 0 0 0;
+    color: var(--paper);
+    animation: fadeInUp 0.8s cubic-bezier(0.19, 1, 0.22, 1) forwards;
+  }
+
+  .role-flip {
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: clamp(0.8rem, 3.5vw, 1.15rem);
+    color: var(--track-glow);
+    letter-spacing: 0.05em;
+  }
+
+  .role-flip .cursor {
+    display: inline-block;
+    width: 5px; 
+    height: 12px;
+    background: var(--track-glow);
+    margin-left: 4px;
+    animation: blink 0.8s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .location-tag {
+    margin-top: 10px;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--paper-dim);
+    letter-spacing: 0.1em;
+  }
+
+  /* REVISED: CLEAN "SCROLL DOWN" BUTTON WITH HIGH-VISIBILITY GLOW */
+  .scroll-indicator-prompt {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 22px;
+    background: rgba(10, 21, 38, 0.9);
+    border: 1px solid var(--track-glow);
+    border-radius: 30px;
+    cursor: pointer;
+    z-index: 20;
+    opacity: 0;
+    visibility: hidden;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 15px rgba(0, 176, 255, 0.25);
+    transition: opacity 0.8s ease, visibility 0.8s ease, transform 0.25s ease, box-shadow 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+    user-select: none;
+    animation: ambientPulseGlow 3s infinite ease-in-out;
+  }
+
+  .stage-intro-cleared .scroll-indicator-prompt {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  .scroll-prompt-text {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--cyan-glow);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(0, 229, 255, 0.6);
+  }
+
+  .scroll-prompt-arrow {
+    width: 18px;
+    height: 18px;
+    color: var(--signal-green);
+    animation: bounceArrow 1.6s infinite ease-in-out;
+    filter: drop-shadow(0 0 6px var(--signal-green));
+  }
+
+  /* Soft Ambient Pulse for Interactive Scroll Button */
+  @keyframes ambientPulseGlow {
+    0%, 100% {
+      box-shadow: 0 0 15px rgba(0, 176, 255, 0.25), inset 0 0 5px rgba(0, 229, 255, 0.15);
+      border-color: var(--track-glow);
+    }
+    50% {
+      box-shadow: 0 0 22px rgba(0, 229, 255, 0.5), inset 0 0 10px rgba(0, 229, 255, 0.3);
+      border-color: var(--cyan-glow);
+    }
+  }
+
+  .scroll-indicator-prompt:hover {
+    border-color: var(--signal-green);
+    background: rgba(16, 34, 59, 0.95);
+    box-shadow: 0 0 25px rgba(0, 230, 118, 0.5), inset 0 0 10px rgba(0, 230, 118, 0.3);
+    transform: translateX(-50%) translateY(-2px);
+  }
+
+  .scroll-indicator-prompt:active,
+  .scroll-indicator-prompt.glow-click {
+    transform: translateX(-50%) scale(0.95);
+    border-color: var(--signal-green) !important;
+    background: rgba(0, 230, 118, 0.2) !important;
+    box-shadow: 0 0 35px var(--signal-green), 0 0 15px var(--cyan-glow), inset 0 0 15px var(--signal-green) !important;
+  }
+
+  @keyframes bounceArrow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(4px); }
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* HEADINGS */
+  #scene-skills, #scene-achieve, #scene-experience, #scene-metrics { flex-direction: column; justify-content: flex-start; }
+
+  .scene-heading {
+    align-self: flex-start;
+    margin-bottom: 16px;
+    padding-top: 1vh;
+    z-index: 3;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.8s cubic-bezier(0.19, 1, 0.22, 1), transform 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  .stage.active .scene-heading { opacity: 1; transform: translateY(0); }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    color: var(--signal-amber);
+    text-transform: uppercase;
+    margin: 0 0 4px;
+  }
+
+  .heading-title {
+    font-family: var(--disp);
+    font-weight: 600;
+    font-size: clamp(1.2rem, 5vw, 1.7rem);
+    margin: 0;
+  }
+
+  /* SCENE 2 : SKILLS */
+  .station-row {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    z-index: 3;
+    margin-top: 10px;
+  }
+
+  .station {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 45%;
+    padding: 10px 6px;
+    background: rgba(10, 21, 38, 0.6);
+    border: 1px solid var(--navy-700);
+    border-radius: 8px;
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+    transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.6s ease;
+  }
+
+  .station-dot {
+    width: 10px; 
+    height: 10px;
+    border-radius: 50%;
+    background: var(--navy-950);
+    border: 2px solid var(--track-glow);
+    margin-bottom: 8px;
+    transition: all 0.4s ease;
+  }
+
+  .stage.active .station { opacity: 1; transform: scale(1) translateY(0); }
+  .stage.active .station-dot {
+    background: var(--signal-green);
+    border-color: var(--signal-green);
+    box-shadow: 0 0 10px var(--signal-green);
+  }
+
+  .station-label {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    text-align: center;
+    color: var(--paper-dim);
+    line-height: 1.35;
+  }
+
+  /* SCENE 3: PROFESSIONAL HISTORY */
+  .timeline-container {
+    position: relative;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 3;
+  }
+
+  .timeline-container::before {
+    content: '';
+    position: absolute;
+    left: 12px;
+    top: 5px;
+    bottom: 5px;
+    width: 2px;
+    background: var(--navy-700);
+    transform: scaleY(0);
+    transform-origin: top center;
+    transition: transform 1s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+  .stage.active .timeline-container::before {
+    transform: scaleY(1);
+    background: linear-gradient(to bottom, var(--signal-green), var(--track-glow), var(--navy-700));
+  }
+
+  .timeline-block {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 28px;
+    opacity: 0;
+    transform: translateX(-20px);
+    transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+  .stage.active .timeline-block { opacity: 1; transform: translateX(0); }
+
+  .timeline-lever-node {
+    position: absolute;
+    left: 6px;
+    top: 4px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--navy-950);
+    border: 2px solid var(--navy-700);
+    z-index: 2;
+  }
+
+  .stage.active .timeline-block:nth-child(1) .timeline-lever-node { border-color: var(--signal-green); background: var(--signal-green); box-shadow: 0 0 8px var(--signal-green); }
+  .stage.active .timeline-block:nth-child(2) .timeline-lever-node { border-color: var(--track-glow); background: var(--track-glow); box-shadow: 0 0 8px var(--track-glow); }
+  .stage.active .timeline-block:nth-child(3) .timeline-lever-node { border-color: var(--signal-amber); background: var(--signal-amber); box-shadow: 0 0 8px var(--signal-amber); }
+
+  .timeline-date {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--track-glow);
+  }
+
+  .timeline-content-card {
+    background: rgba(10, 21, 38, 0.85);
+    border: 1px solid var(--navy-700);
+    border-radius: 6px;
+    padding: 10px 12px;
+    width: 100%;
+  }
+
+  .timeline-content-card .exp-role {
+    font-family: var(--disp);
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin: 0 0 2px 0;
+    color: var(--paper);
+  }
+
+  .timeline-content-card .exp-company {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--paper-dim);
+    margin: 0 0 6px 0;
+    text-transform: uppercase;
+  }
+
+  .timeline-content-card .exp-bullets {
+    margin: 0;
+    padding-left: 14px;
+    font-size: 0.72rem;
+    color: var(--paper-dim);
+    line-height: 1.35;
+  }
+
+  .timeline-content-card .exp-bullets li { margin-bottom: 2px; }
+
+  /* SCENE 4 : KEY ACHIEVEMENTS */
+  .carriage-track {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 3;
+  }
+
+  .carriage {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: var(--navy-900);
+    border: 1px solid var(--navy-700);
+    border-left: 3px solid var(--track-glow);
+    border-radius: 6px;
+    padding: 12px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+
+  .stage.active .carriage {
+    opacity: 1;
+    transform: translateY(0);
+    border-left-color: var(--signal-green);
+  }
+
+  /* Interactive Carriage Specific Styling with Glowing Effect */
+  .carriage.interactive-card {
+    cursor: pointer;
+    border: 1px solid var(--track-glow);
+    box-shadow: 0 0 10px rgba(0, 176, 255, 0.2);
+    transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+    position: relative;
+  }
+  
+  .carriage.interactive-card:hover,
+  .carriage.interactive-card:focus {
+    border-color: var(--cyan-glow);
+    box-shadow: 0 0 22px rgba(0, 229, 255, 0.5), inset 0 0 10px rgba(0, 229, 255, 0.2);
+    transform: translateY(-2px);
+  }
+
+  .carriage.interactive-card:active {
+    box-shadow: 0 0 30px var(--signal-green), inset 0 0 12px var(--signal-green);
+    border-color: var(--signal-green);
+  }
+
+  .carriage-icon {
+    font-family: var(--mono);
+    font-size: 1rem;
+    color: var(--signal-amber);
+  }
+
+  .carriage-text .t-title {
+    font-family: var(--disp);
+    font-weight: 600;
+    font-size: 0.88rem;
+    margin: 0 0 2px;
+    color: var(--paper);
+  }
+
+  .carriage-text .t-sub {
+    font-size: 0.72rem;
+    color: var(--paper-dim);
+    margin: 0;
+    line-height: 1.35;
+  }
+
+  /* SCENE 5 : METRICS & INTERLOCKING */
+  .metrics-content {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    width: 100%;
+    z-index: 3;
+  }
+
+  .metric-card {
+    background: var(--navy-900);
+    border: 1px solid var(--navy-700);
+    border-radius: 6px;
+    padding: 10px 4px;
+    text-align: center;
+    opacity: 0;
+    transform: translateY(15px);
+    transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+  }
+  .stage.active .metric-card { opacity: 1; transform: translateY(0); }
+
+  .metric-num {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: clamp(1.1rem, 4vw, 1.8rem);
+    color: var(--signal-green);
+  }
+
+  .metric-label {
+    font-size: 0.55rem;
+    color: var(--paper-dim);
+    margin-top: 4px;
+    text-transform: uppercase;
+  }
+
+  .zone-container {
+    width: 100%;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .zone-strip {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+
+  /* Enhanced Glowing Zone Chips */
+  .zone-chip {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    padding: 6px 12px;
+    background: rgba(10, 21, 38, 0.85);
+    border: 1px solid var(--track-glow);
+    border-radius: 16px;
+    color: var(--paper);
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 0 0 8px rgba(0, 176, 255, 0.2);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
+  }
+
+  .zone-chip:hover {
+    border-color: var(--cyan-glow);
+    color: #ffffff;
+    box-shadow: 0 0 16px rgba(0, 229, 255, 0.6), inset 0 0 6px rgba(0, 229, 255, 0.3);
+    transform: translateY(-2px);
+  }
+
+  .zone-chip:active {
+    transform: scale(0.92);
+  }
+
+  .zone-chip.interactive-trigger.active-selected {
+    background: var(--signal-green);
+    color: var(--navy-950);
+    font-weight: 700;
+    border-color: var(--signal-green);
+    box-shadow: 0 0 20px var(--signal-green), 0 0 10px var(--cyan-glow);
+    transform: scale(1.05);
+  }
+
+  /* Animated Filament container styling */
+  .interlocking-filament {
+    width: 100%;
+    background: rgba(4, 9, 20, 0.95);
+    border: 0 solid rgba(0, 229, 255, 0.3);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    opacity: 0;
+    overflow: hidden;
+    max-height: 0;
+    transform: scaleY(0.92);
+    transform-origin: top center;
+    transition: max-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.35s ease,
+                transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+                padding 0.4s ease,
+                border-width 0.3s ease;
+  }
+
+  .interlocking-filament.open {
+    max-height: 200px;
+    opacity: 1;
+    transform: scaleY(1);
+    border-width: 1px;
+    padding: 16px 10px;
+    box-shadow: 0 0 24px rgba(0, 229, 255, 0.25);
+  }
+
+  .interlocking-filament.animating-out {
+    max-height: 0 !important;
+    opacity: 0 !important;
+    transform: scaleY(0.85) !important;
+    padding: 0 10px !important;
+  }
+
+  /* Circuit Line Wrapper */
+  .filament-line-wrapper {
+    position: relative;
+    width: 100%;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+
+  /* Neon Track Line */
+  .filament-track-line {
+    position: absolute;
+    left: 5%;
+    right: 5%;
+    top: 50%;
+    height: 3px;
+    background: var(--navy-700);
+    transform: translateY(-50%);
+    border-radius: 2px;
+    transition: all 0.4s ease;
+    z-index: 1;
+  }
+
+  .interlocking-filament.open .filament-track-line {
+    background: var(--cyan-glow);
+    box-shadow: 0 0 8px var(--cyan-glow), 0 0 16px rgba(0, 229, 255, 0.4);
+  }
+
+  .dynamic-nodes-wrapper {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    justify-content: space-around;
+    width: 90%;
+    height: 100%;
+    align-items: center;
+  }
+
+  /* Station Node Dot Alignment */
+  .filament-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+    top: 10px;
+    transition: transform 0.25s ease;
+  }
+
+  .filament-node:hover {
+    transform: translateY(-2px);
+  }
+
+  .node-lamp {
+    width: 14px;
+    height: 14px;
+    background: var(--navy-950);
+    border: 2px solid var(--navy-700);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    margin-bottom: 6px;
+    box-shadow: 0 0 0 3px var(--navy-950);
+  }
+
+  .interlocking-filament.open .node-lamp {
+    border-color: var(--cyan-glow);
+    background: var(--navy-900);
+    box-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+  }
+
+  .filament-node.occupied .node-lamp {
+    background: var(--signal-green);
+    border-color: var(--signal-green);
+    box-shadow: 0 0 0 3px var(--navy-950), 0 0 15px var(--signal-green);
+  }
+
+  .node-code {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--paper-dim);
+    transition: color 0.3s ease;
+  }
+
+  .filament-node.occupied .node-code {
+    color: var(--signal-green);
+    font-weight: bold;
+  }
+
+  /* SCENE 6 : CTA */
+  #scene-cta .content { text-align: center; z-index: 3; width: 100%; }
+  .cta-lamp {
+    width: 14px; 
+    height: 14px;
+    border-radius: 50%;
+    background: var(--signal-green);
+    box-shadow: 0 0 16px var(--signal-green);
+    margin: 0 auto 16px;
+    filter: url(#lens-glass-distortion);
+  }
+
+  .cta-heading {
+    font-family: var(--disp);
+    font-weight: 700;
+    font-size: clamp(1.2rem, 5vw, 1.8rem);
+    margin: 0 0 16px;
+  }
+
+  .cta-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+  }
+
+  .cta-btn {
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+  }
+
+  .cta-btn-primary {
+    background: #0077b5;
+    color: #ffffff;
+    border: 1px solid #0077b5;
+    box-shadow: 0 0 15px rgba(0, 119, 181, 0.4);
+  }
+
+  .cta-btn-primary:hover {
+    background: #005885;
+    box-shadow: 0 0 25px rgba(0, 119, 181, 0.8);
+  }
+
+  .cta-btn-secondary {
+    background: transparent;
+    color: var(--cyan-glow);
+    border: 1px solid var(--track-glow);
+    box-shadow: 0 0 10px rgba(0, 176, 255, 0.2);
+  }
+
+  .cta-btn-secondary:hover {
+    border-color: var(--cyan-glow);
+    background: rgba(0, 229, 255, 0.1);
+    box-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
+  }
+
+  /* MODAL DISPLAY FOR TOOL ARCHITECTURE DETAILS */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(4, 9, 20, 0.88);
+    backdrop-filter: blur(12px);
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+
+  .modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .modal-container {
+    background: var(--navy-900);
+    border: 1px solid var(--track-glow);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 800px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 35px rgba(0, 176, 255, 0.25);
+    transform: scale(0.95) translateY(10px);
+    transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+    overflow: hidden;
+  }
+
+  .modal-overlay.active .modal-container {
+    transform: scale(1) translateY(0);
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+    background: rgba(16, 34, 59, 0.6);
+    border-bottom: 1px solid var(--navy-700);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .modal-title {
+    font-family: var(--disp);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--cyan-glow);
+    margin: 0;
+  }
+
+  .modal-close-btn {
+    background: transparent;
+    border: none;
+    color: var(--paper-dim);
+    font-family: var(--mono);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+
+  .modal-close-btn:hover {
+    color: var(--signal-red);
+  }
+
+  .modal-body {
+    padding: 24px 20px;
+    overflow-y: auto;
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--paper);
+  }
+
+  .modal-body p {
+    margin-top: 0;
+    color: var(--paper-dim);
+  }
+
+  .modal-section-title {
+    font-family: var(--disp);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--signal-amber);
+    margin: 20px 0 10px;
+    border-bottom: 1px solid var(--navy-700);
+    padding-bottom: 4px;
+  }
+
+  .modal-module-item {
+    margin-bottom: 16px;
+  }
+
+  .modal-module-name {
+    font-family: var(--mono);
+    font-weight: 700;
+    color: var(--signal-green);
+    margin-bottom: 4px;
+  }
+
+  .modal-module-desc {
+    color: var(--paper-dim);
+    margin: 0;
+    padding-left: 8px;
+  }
+
+  .modal-module-desc ul {
+    margin: 4px 0 0 0;
+    padding-left: 20px;
+  }
+
+  /* THERMAL / RELAY CABINET MODE STYLES */
+  body.cabinet-mode {
+    --navy-950: #060905;
+    --navy-900: #0d140a;
+    --navy-800: #142111;
+    --navy-700: #1e361a;
+    --paper: #e2f0d9;
+    --paper-dim: #8ba880;
+    --track-glow: #76ff03;
+    --cyan-glow: #b2ff59;
+  }
+
+  body.cabinet-mode .stage {
+    filter: sepia(0.2) hue-rotate(50deg) contrast(1.1);
+  }
+
+  body.cabinet-mode .timeline-content-card,
+  body.cabinet-mode .carriage,
+  body.cabinet-mode .metric-card,
+  body.cabinet-mode .station,
+  body.cabinet-mode .modal-container {
+    border-style: dashed;
+    background: rgba(13, 20, 10, 0.9);
+    box-shadow: inset 0 0 10px rgba(118, 255, 3, 0.15);
+  }
+</style>
+</head>
+<body class="stage-intro-running">
+
+<!-- Lens Glass SVG Filter Definition -->
+<svg style="display: none;">
+  <defs>
+    <filter id="lens-glass-distortion" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="1" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" result="displaced" />
+      <feGaussianBlur in="displaced" stdDeviation="0.4" />
+    </filter>
+  </defs>
+</svg>
+
+<!-- Ambient Canvas for Dynamic Headlight & Light Sweep FX -->
+<canvas id="fx-canvas"></canvas>
+
+<!-- Top Right Control Panel -->
+<div class="control-panel-group">
+  <button class="theme-mode-btn" id="cabinet-toggle-btn">
+    <span class="mode-indicator-dot"></span>
+    <span id="cabinet-toggle-text">CABIN: OFF</span>
+  </button>
+  <button class="audio-control-btn active" id="audio-toggle-btn">
+    <span class="audio-indicator-dot"></span>
+    <span id="audio-toggle-text">SFX: ON</span>
+  </button>
+</div>
+
+<div class="stage" id="stage-intro">
+  <div class="grid-overlay"></div>
+  <section class="scene" id="scene-intro">
+    <div class="rail-spine"></div>
+    <div class="intro-layout">
+      
+      <div class="interlocking-sequencer" id="signal-sequencer">
+        <div class="animated-aspect-post">
+          <div class="lens-bulb green-lens"></div>
+          <div class="lens-bulb amber-lens"></div>
+          <div class="lens-bulb red-lens"></div>
+        </div>
+        <div class="sequencer-status-text"></div>
+      </div>
+
+      <div class="intro-text-block" id="intro-titles">
+        <h1 class="name-reveal">SOMESHA M</h1>
+        <div class="role-flip">RAILWAY SIGNALLING ENGINEER<span class="cursor"></span></div>
+        <div class="location-tag">BENGALURU · KARNATAKA · INDIA</div>
+      </div>
+
+    </div>
+
+    <!-- REVISED: STRICTLY "SCROLL DOWN" WITH HIGH VISIBILITY GLOW -->
+    <div class="scroll-indicator-prompt" id="scroll-prompt-btn" role="button" aria-label="Scroll down to explore track route">
+      <span class="scroll-prompt-text">SCROLL DOWN</span>
+      <svg class="scroll-prompt-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+      </svg>
+    </div>
+  </section>
+</div>
+
+<div class="stage" id="stage-skills">
+  <div class="grid-overlay"></div>
+  <section class="scene" id="scene-skills">
+    <div class="scene-heading">
+      <p class="eyebrow">Core Competencies</p>
+      <h2 class="heading-title">5 Years Across Interlocking</h2>
+    </div>
+    <div class="station-row">
+      <div class="station"><div class="station-dot"></div><div class="station-label">Electronic<br>Interlocking</div></div>
+      <div class="station"><div class="station-dot"></div><div class="station-label">IFAT / CFAT / SAT<br>&amp; Commissioning</div></div>
+      <div class="station"><div class="station-dot"></div><div class="station-label">Cable Core<br>Plans / VDU</div></div>
+      <div class="station"><div class="station-dot"></div><div class="station-label">Python + AI<br>Test Tools</div></div>
+      <div class="station"><div class="station-dot"></div><div class="station-label">AutoCAD<br>Design</div></div>
+    </div>
+  </section>
+</div>
+
+<div class="stage" id="stage-experience">
+  <div class="grid-overlay"></div>
+  <section class="scene" id="scene-experience">
+    <div class="scene-heading">
+      <p class="eyebrow">Professional History</p>
+      <h2 class="heading-title">Milestones on Track</h2>
+    </div>
+    
+    <div class="timeline-container">
+      <div class="timeline-block">
+        <div class="timeline-lever-node"></div>
+        <div class="timeline-date">2025 - PRESENT</div>
+        <div class="timeline-content-card">
+          <h3 class="exp-role">Assistant Engineer</h3>
+          <p class="exp-company">Sensedge Transportation Systems</p>
+          <ul class="exp-bullets">
+            <li>Testing across SR, SWR, SCR, WR, WCR, NER, NFR, etc.</li>
+            <li>Lead Customer Factory Acceptance Testing (CFAT).</li>
+            <li>Delivered testing for SCR - Kakinada Port (494 routes).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="timeline-block">
+        <div class="timeline-lever-node"></div>
+        <div class="timeline-date">2023 - 2025</div>
+        <div class="timeline-content-card">
+          <h3 class="exp-role">Junior Testing Engineer</h3>
+          <p class="exp-company">Sensedge Transportation Systems</p>
+          <ul class="exp-bullets">
+            <li>EI testing and IFAT/CFAT/SAT across 15+ stations.</li>
+            <li>Multi-OEM system testing (Hitachi, Siemens Rail).</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="timeline-block">
+        <div class="timeline-lever-node"></div>
+        <div class="timeline-date">2021 - 2023</div>
+        <div class="timeline-content-card">
+          <h3 class="exp-role">Diploma Trainee Engineer</h3>
+          <p class="exp-company">Sensedge Transportation Systems</p>
+          <ul class="exp-bullets">
+            <li>Interface circuitry plans for 10+ new and 20+ alteration stations.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="stage" id="stage-achieve">
+  <div class="grid-overlay"></div>
+  <section class="scene" id="scene-achieve">
+    <div class="scene-heading">
+      <p class="eyebrow">Key Achievements</p>
+      <h2 class="heading-title">Recognition Earned</h2>
+    </div>
+    <div class="carriage-track">
+      <div class="carriage interactive-card" id="square-sheet-card" role="button" tabindex="0">
+        <div class="carriage-icon">&#9733;</div>
+        <div class="carriage-text">
+          <p class="t-title">Innovation — Square Sheet Tool (SensSquare Beta) &#x2197;</p>
+          <p class="t-sub">Custom Python + AI-based validation system for quick verification. Click to inspect architecture.</p>
+        </div>
+      </div>
+      <div class="carriage">
+        <div class="carriage-icon">&#9776;</div>
+        <div class="carriage-text">
+          <p class="t-title">Appreciation Across 5 Stations</p>
+          <p class="t-sub">Zero-defect field delivery — NWR: PRUR, KESR, GJS, SRW · WR: BJW.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="stage" id="stage-metrics">
+  <div class="grid-overlay"></div>
+  <section class="scene" id="scene-metrics">
+    <div class="scene-heading">
+      <p class="eyebrow">Delivery &amp; Assets</p>
+      <h2 class="heading-title">Track Record &amp; Zones</h2>
+    </div>
+    <div class="metrics-content">
+      <div class="metrics-grid">
+        <div class="metric-card" data-target="5" data-suffix=""><span class="metric-num">0</span><div class="metric-label">Years Exp</div></div>
+        <div class="metric-card" data-target="85" data-suffix="+"><span class="metric-num">0</span><div class="metric-label">Stations</div></div>
+        <div class="metric-card" data-target="494" data-suffix=""><span class="metric-num">0</span><div class="metric-label">Routes (COA)</div></div>
+      </div>
+      
+      <div class="zone-container">
+        <div class="zone-strip">
+          <div class="zone-chip interactive-trigger" id="sr-trigger">SR</div>
+          <div class="zone-chip interactive-trigger" id="swr-trigger">SWR</div>
+          <div class="zone-chip interactive-trigger" id="scr-trigger">SCR</div>
+          <div class="zone-chip interactive-trigger" id="secr-trigger">SECR</div>
+          <div class="zone-chip interactive-trigger" id="ncr-trigger">NCR</div>
+          <div class="zone-chip interactive-trigger" id="nwr-trigger">NWR</div>
+          <div class="zone-chip interactive-trigger" id="ner-trigger">NER</div>
+          <div class="zone-chip interactive-trigger" id="nfr-trigger">NFR</div>
+          <div class="zone-chip interactive-trigger" id="er-trigger">ER</div>
+          <div class="zone-chip interactive-trigger" id="km-trigger">KM</div>
+          <div class="zone-chip interactive-trigger" id="wr-trigger">WR</div>
+          <div class="zone-chip interactive-trigger" id="wcr-trigger">WCR</div>
+          <div class="zone-chip interactive-trigger" id="cr-trigger">CR</div>
+        </div>
+
+        <div class="interlocking-filament" id="interlocking-panel">
+          <div class="filament-line-wrapper">
+            <div class="filament-track-line"></div>
+            <div class="dynamic-nodes-wrapper" id="dynamic-node-container"></div>
+          </div>
+          
+          <div id="station-details-panel" style="width: 100%; text-align: center; font-family: var(--mono); font-size: 0.68rem; color: var(--signal-amber); opacity: 0; transition: opacity 0.3s ease;">
+            SELECT A STATION NODE
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</div>
+
+<div class="stage" id="stage-cta">
+  <div class="grid-overlay"></div>
+  <section class="scene" id="scene-cta">
+    <div class="content">
+      <div class="cta-lamp"></div>
+      <h2 class="cta-heading">Let's Connect</h2>
+      
+      <div class="cta-buttons">
+        <a href="https://linkedin.com/in/somesha-m-2061371ba" target="_blank" rel="noopener" class="cta-btn cta-btn-primary">
+          <span>Connect on LinkedIn</span>
+        </a>
+        <a href="mailto:somesha211101@gmail.com" class="cta-btn cta-btn-secondary">
+          <span>somesha211101@gmail.com</span>
+        </a>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- MODAL OVERLAY FOR SQUARE SHEET TOOL SPECIFICATION -->
+<div class="modal-overlay" id="tool-spec-modal">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3 class="modal-title">SensSquare Beta — Architecture Breakdown</h3>
+      <button class="modal-close-btn" id="modal-close-x">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p><strong>SensSquare Beta</strong> is a desktop automation and testing application built in Python using the tkinter GUI framework. Designed specifically for railway signaling software testing, it integrates automated macro execution (via external macro tools like Mini Mouse Macro), real-time screen/pixel region monitoring, automated Excel report generation, and Telegram bot remote control and alert systems.</p>
+      
+      <div class="modal-section-title">&#x1F3D7;&#xFE0F; Core Architecture &amp; Component Breakdown</div>
+      
+      <div class="modal-module-item">
+        <div class="modal-module-name">1. Global Configuration &amp; Utilities</div>
+        <div class="modal-module-desc">
+          <ul>
+            <li><strong>COLORS &amp; AppConfig:</strong> Defines a unified color scheme (Red/Blue theme) and central configuration constants such as timeout intervals, file paths, macro execution parameters, and Telegram message templates.</li>
+            <li><strong>DataLogger:</strong> Thread-safe event logging utility that captures system activities, user actions, warnings, and errors with high-precision timestamps. Limits maximum log entries to prevent memory bloat.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="modal-module-item">
+        <div class="modal-module-name">2. User Authentication &amp; Logging</div>
+        <div class="modal-module-desc">
+          <ul>
+            <li><strong>LoginApp:</strong> Provides a secure login dialog before loading the main interface. Captures railway-specific operational metadata including Username &amp; Password, Station Name &amp; Code, Railway Zone &amp; Division (with dynamic filtering), and Project Code.</li>
+            <li><strong>DataLoggerApp:</strong> A dedicated GUI window (SUAL) that displays color-coded system logs in real time, allowing users to review, refresh, or clear logs.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="modal-module-item">
+        <div class="modal-module-name">3. Remote Management &amp; Telegram Integration</div>
+        <div class="modal-module-desc">
+          <ul>
+            <li><strong>TelegramBot:</strong> Runs a background long-polling thread to connect with the Telegram Bot API.</li>
+            <li><strong>Alert Notifications:</strong> Sends real-time updates for macro execution start/completion, aborts, signal failures, and monitor timeouts.</li>
+            <li><strong>Remote Control Commands:</strong> Allows users to issue commands via Telegram chat (e.g., <code>/status</code>, <code>/pause</code>, <code>/resume</code>, <code>/stop</code>, <code>/routes</code>, <code>/progress</code>, <code>/enable_alerts</code>, <code>/disable_alerts</code>).</li>
+            <li><strong>Reliability Features:</strong> Includes rate-limiting, thread-safe message queues, and automatic connection recovery.</li>
+            <li><strong>TelegramSettingsApp:</strong> A configuration dialog to set up bot tokens, chat IDs, toggle alerts/remote controls, and test API connections.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="modal-module-item">
+        <div class="modal-module-name">4. Hardware Interaction &amp; Hotkey Management</div>
+        <div class="modal-module-desc">
+          <ul>
+            <li><strong>MacroKeyListener:</strong> Utilizes <code>pynput</code> to listen globally for system hotkeys.</li>
+            <li>Allows users to dynamically trigger Emergency Stop or Pause/Resume actions during macro execution from anywhere in the system.</li>
+            <li>Includes key debouncing and thread safety to avoid duplicate triggers.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="modal-module-item">
+        <div class="modal-module-name">5. Main UI Application Framework</div>
+        <div class="modal-module-desc">
+          <ul>
+            <li><strong>TabbedApplication:</strong> The core controller managing the application UI layout.</li>
+            <li><strong>Header Banner:</strong> Displays user greeting, station/project details, and a dynamic multi-state status indicator ("bubbles") showing system readiness.</li>
+            <li><strong>Notebook Tabs:</strong> Houses two primary modules:
+              <ul>
+                <li><em>Macro Runner Tab:</em> Coordinates batch execution of mouse macros based on loaded Excel sheets.</li>
+                <li><em>Signal Monitor Tab:</em> Handles live image-processing and region monitoring for visual/pixel changes.</li>
+              </ul>
+            </li>
+            <li><strong>Help &amp; About Windows:</strong> Includes an animated help documentation viewer and slogan marquee.</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+
+  /* ===================================================
+     CANVAS HEADLIGHT SWEEP & AMBIENT LIGHT FX
+     =================================================== */
+  var canvas = document.getElementById('fx-canvas');
+  var ctx = canvas.getContext('2d');
+  var lightX = -200;
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  function drawHeadlight() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    var grad = ctx.createRadialGradient(lightX, canvas.height * 0.5, 10, lightX, canvas.height * 0.5, 300);
+    grad.addColorStop(0, 'rgba(0, 229, 255, 0.08)');
+    grad.addColorStop(0.5, 'rgba(0, 176, 255, 0.03)');
+    grad.addColorStop(1, 'transparent');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(lightX, canvas.height * 0.5, 300, 0, Math.PI * 2);
+    ctx.fill();
+
+    lightX += 2.5;
+    if (lightX > canvas.width + 300) {
+      lightX = -300;
+    }
+    requestAnimationFrame(drawHeadlight);
+  }
+  drawHeadlight();
+
+  /* ===================================================
+     ENHANCED SCROLL PROMPT GLOW & INTERACTION
+     =================================================== */
+  var scrollPrompt = document.getElementById('scroll-prompt-btn');
+  var stageSkills = document.getElementById('stage-skills');
+
+  if (scrollPrompt && stageSkills) {
+    scrollPrompt.addEventListener('click', function() {
+      // Trigger glowing visual press state
+      scrollPrompt.classList.add('glow-click');
+      playSwitchThrowSound();
+      triggerHaptic([30, 40, 30]);
+
+      setTimeout(function() {
+        stageSkills.scrollIntoView({ behavior: 'smooth' });
+        setTimeout(function() {
+          scrollPrompt.classList.remove('glow-click');
+        }, 400);
+      }, 150);
+    });
+  }
+
+  window.addEventListener('scroll', function() {
+    if (window.scrollY > 80 && scrollPrompt) {
+      scrollPrompt.style.opacity = '0';
+      scrollPrompt.style.pointerEvents = 'none';
+    } else if (window.scrollY <= 80 && scrollPrompt && document.body.classList.contains('stage-intro-cleared')) {
+      scrollPrompt.style.opacity = '1';
+      scrollPrompt.style.pointerEvents = 'auto';
+    }
+  });
+
+  /* ===================================================
+     THERMAL / RELAY CABINET MODE SWITCHER
+     =================================================== */
+  var cabinetBtn = document.getElementById('cabinet-toggle-btn');
+  var cabinetText = document.getElementById('cabinet-toggle-text');
+  var cabinetActive = false;
+
+  cabinetBtn.addEventListener('click', function() {
+    cabinetActive = !cabinetActive;
+    if (cabinetActive) {
+      document.body.classList.add('cabinet-mode');
+      cabinetBtn.classList.add('active');
+      cabinetText.textContent = "CABIN: ON";
+    } else {
+      document.body.classList.remove('cabinet-mode');
+      cabinetBtn.classList.remove('active');
+      cabinetText.textContent = "CABIN: OFF";
+    }
+    playSwitchThrowSound();
+    triggerHaptic(30);
+  });
+
+  /* ===================================================
+     AUDIO & HAPTIC FEEDBACK ENGINE (WEB AUDIO API)
+     =================================================== */
+  var audioEnabled = true;
+  var audioCtx = null;
+
+  function initAudio() {
+    if (!audioCtx) {
+      var AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) {
+        audioCtx = new AudioContext();
+      }
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  var audioBtn = document.getElementById('audio-toggle-btn');
+  var audioText = document.getElementById('audio-toggle-text');
+  
+  audioBtn.addEventListener('click', function() {
+    initAudio();
+    audioEnabled = !audioEnabled;
+    if (audioEnabled) {
+      audioBtn.classList.add('active');
+      audioText.textContent = "SFX: ON";
+      playRelayClick();
+      triggerHaptic(20);
+    } else {
+      audioBtn.classList.remove('active');
+      audioText.textContent = "SFX: OFF";
+    }
+  });
+
+  function triggerHaptic(pattern) {
+    if ("vibrate" in navigator) {
+      try {
+        navigator.vibrate(pattern);
+      } catch(e) {}
+    }
+  }
+
+  function playRelayClick() {
+    if (!audioEnabled) return;
+    initAudio();
+    if (!audioCtx) return;
+
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.03);
+
+    gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.03);
+  }
+
+  function playSwitchThrowSound() {
+    if (!audioEnabled) return;
+    initAudio();
+    if (!audioCtx) return;
+
+    playRelayClick();
+
+    setTimeout(function() {
+      if (!audioCtx) return;
+      var osc = audioCtx.createOscillator();
+      var gain = audioCtx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.08);
+
+      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.08);
+    }, 40);
+  }
+
+  function playSignalClearSound() {
+    if (!audioEnabled) return;
+    initAudio();
+    if (!audioCtx) return;
+
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.06);
+
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.15);
+  }
+
+  document.querySelectorAll('a, button, .zone-chip, .interactive-card').forEach(function(el) {
+    el.addEventListener('click', function() {
+      initAudio();
+      triggerHaptic(15);
+    });
+  });
+
+  /* ===================================================
+     MODAL CONTROLLER (SQUARE SHEET TOOL ARCHITECTURE)
+     =================================================== */
+  var toolModal = document.getElementById('tool-spec-modal');
+  var cardTrigger = document.getElementById('square-sheet-card');
+  var modalCloseBtn = document.getElementById('modal-close-x');
+
+  function openToolModal() {
+    playSwitchThrowSound();
+    triggerHaptic([30, 40, 30]);
+    toolModal.classList.add('active');
+  }
+
+  function closeToolModal() {
+    playRelayClick();
+    toolModal.classList.remove('active');
+  }
+
+  if (cardTrigger) {
+    cardTrigger.addEventListener('click', openToolModal);
+    cardTrigger.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openToolModal();
+      }
+    });
+  }
+
+  if (modalCloseBtn) {
+    modalCloseBtn.addEventListener('click', closeToolModal);
+  }
+
+  if (toolModal) {
+    toolModal.addEventListener('click', function(e) {
+      if (e.target === toolModal) {
+        closeToolModal();
+      }
+    });
+  }
+
+  /* ===================================================
+     PAGE INTERACTION & SEQUENCER LOGIC
+     =================================================== */
+
+  setTimeout(function() {
+    playRelayClick();
+  }, 1000);
+  setTimeout(function() {
+    playSwitchThrowSound();
+  }, 2700);
+  setTimeout(function() {
+    playSignalClearSound();
+  }, 3800);
+
+  setTimeout(function() {
+    document.body.classList.remove('stage-intro-running');
+    document.body.classList.add('stage-intro-cleared');
+  }, 4400);
+
+  var stages = document.querySelectorAll('.stage');
+  var observerOptions = {
+    root: null,
+    rootMargin: "0px",
+    threshold: 0.25
+  };
+
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('active');
+        playRelayClick();
+        triggerHaptic(25);
+        if (entry.target.id === 'stage-metrics') {
+          var cards = entry.target.querySelectorAll('.metric-card');
+          cards.forEach(function(card, idx) {
+            animateCount(card, idx * 80);
+          });
+        }
+      } else {
+        entry.target.classList.remove('active'); 
+        if (entry.target.id === 'stage-metrics') {
+          var cards = entry.target.querySelectorAll('.metric-card');
+          cards.forEach(function(card) {
+            var numEl = card.querySelector('.metric-num');
+            numEl.textContent = "0";
+            delete numEl.dataset.animated; 
+          });
+        }
+      }
+    });
+  }, observerOptions);
+
+  stages.forEach(function(stage) {
+    observer.observe(stage);
+  });
+
+  function animateCount(card, delayMs) {
+    var numEl = card.querySelector('.metric-num');
+    if (numEl.dataset.animated === '1') return;
+    numEl.dataset.animated = '1';
+    
+    var target = parseInt(card.getAttribute('data-target'), 10);
+    var suffix = card.getAttribute('data-suffix') || '';
+    
+    setTimeout(function() {
+      var startTs = null;
+      var duration = 700;
+      
+      function step(ts) {
+        if (numEl.dataset.animated !== '1') return;
+        if (!startTs) startTs = ts;
+        var progress = Math.min((ts - startTs) / duration, 1);
+        var eased = 1 - Math.pow(1 - progress, 4);
+        var currentVal = Math.round(eased * target);
+        
+        numEl.textContent = currentVal + (progress >= 1 ? suffix : '');
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        }
+      }
+      requestAnimationFrame(step);
+    }, delayMs);
+  }
+
+  var triggers = {
+    SR: document.getElementById('sr-trigger'),
+    SWR: document.getElementById('swr-trigger'),
+    SCR: document.getElementById('scr-trigger'),
+    SECR: document.getElementById('secr-trigger'),
+    NCR: document.getElementById('ncr-trigger'),
+    NWR: document.getElementById('nwr-trigger'),
+    NER: document.getElementById('ner-trigger'),
+    NFR: document.getElementById('nfr-trigger'),
+    ER: document.getElementById('er-trigger'),
+    KM: document.getElementById('km-trigger'),
+    WR: document.getElementById('wr-trigger'),
+    WCR: document.getElementById('wcr-trigger'),
+    CR: document.getElementById('cr-trigger')
+  };
+  
+  var interlockingPanel = document.getElementById('interlocking-panel');
+  var nodeContainer = document.getElementById('dynamic-node-container');
+  var detailsPanel = document.getElementById('station-details-panel');
+  var activeZone = null;
+  var isTransitioning = false;
+
+  var zoneConfigurations = {
+    SR: { nodes: [{ code: "CGL", label: "Chengalpattu Jn (188 R)" }, { code: "AJJ", label: "Arakkonam Jn (474 R)" }, { code: "TMV", label: "Tindivanam (32 R)" }] },
+    SWR: { nodes: [{ code: "WFD", label: "Whitefield (173 R)" }, { code: "NDV", label: "Nidvanda (46 R)" }, { code: "MPT", label: "Mormugao Port (107 R)" }] },
+    SCR: { nodes: [{ code: "YP", label: "Errupalem (83 R)" }, { code: "COA", label: "Kakinada Port (494 R)" }, { code: "DMM", label: "Dharmavaram Jn (273 R)" }] },
+    SECR: { nodes: [{ code: "RJN", label: "Raj Nandgaon" }, { code: "ADANI INPLANT", label: "Adani Inplant Yard (PVT)" }, { code: "ADANI CROSS", label: "Adani Crossing Yard (PVT)" }] },
+    NCR: { nodes: [{ code: "JSR", label: "Jasra" }, { code: "IDGJ", label: "Iradatganj" }, { code: "DBR", label: "Dabhaura" }] },
+    NWR: { nodes: [{ code: "TSD", label: "Tahsil Bhadra" }, { code: "LHU", label: "Loharu Junction" }, { code: "PRUR", label: "Prithwirajpur" }, { code: "GEK", label: "Gegal Akhri" }] },
+    NER: { nodes: [{ code: "DLR", label: "Dullahpur" }, { code: "GH", label: "Ghughuli" }] },
+    NFR: { nodes: [{ code: "DMZ", label: "Dumdangi" }] },
+    ER: { nodes: [{ code: "SDAH", label: "Sealdah" }, { code: "NHT", label: "Nalhati Junction" }, { code: "SDLE", label: "Swadinpur" }] },
+    KM: { nodes: [{ code: "NOAPARA", label: "Noapara Car Shed (Training about the Hitachi System)" }] },
+    WR: { nodes: [{ code: "MU", label: "Makansar" }, { code: "PRTN", label: "Pratapnagar" }, { code: "VS", label: "Vishvamitri Junction" }, { code: "SPBG", label: "Sipra Bridge Station" }, { code: "BA", label: "Bandra" }] },
+    WCR: { nodes: [{ code: "SGO", label: "Saugor" }, { code: "HNM", label: "Hinautaramban Station" }, { code: "GW", label: "Girwar" }, { code: "LDA", label: "Lidhora Khurd" }] },
+    CR: { nodes: [{ code: "JSW DOLVI", label: "JSW Dolvi Works" }, { code: "JSW INPLANT", label: "JSW Inplant Yard" }] }
+  };
+
+  function closePanel(callback) {
+    interlockingPanel.classList.add('animating-out');
+    interlockingPanel.classList.remove('open');
+    detailsPanel.style.opacity = '0';
+    
+    setTimeout(function() {
+      interlockingPanel.classList.remove('animating-out');
+      nodeContainer.innerHTML = '';
+      if (callback) callback();
+    }, 350);
+  }
+
+  function openPanelForZone(zoneKey) {
+    var defaultHeading = "MAJOR STATIONS WORKED IN — " + zoneKey;
+    var config = zoneConfigurations[zoneKey] || { nodes: [{ code: zoneKey, label: zoneKey + " Station" }] };
+    
+    nodeContainer.innerHTML = '';
+
+    config.nodes.forEach(function(n) {
+      var nodeElem = document.createElement('div');
+      nodeElem.className = 'filament-node';
+      nodeElem.innerHTML = '<div class="node-lamp"></div><div class="node-code">' + n.code + '</div>';
+      
+      nodeElem.addEventListener('click', function(e) {
+        e.stopPropagation();
+        
+        playSignalClearSound();
+        triggerHaptic([30, 50, 30]);
+
+        var allNodes = nodeContainer.querySelectorAll('.filament-node');
+        allNodes.forEach(function(nd) { nd.classList.remove('occupied'); });
+        nodeElem.classList.add('occupied');
+        
+        detailsPanel.style.opacity = '0';
+        setTimeout(function() {
+          detailsPanel.textContent = n.code + " — " + n.label;
+          detailsPanel.style.opacity = '1';
+        }, 150);
+      });
+      
+      nodeContainer.appendChild(nodeElem);
+    });
+
+    requestAnimationFrame(function() {
+      interlockingPanel.classList.add('open');
+      detailsPanel.textContent = defaultHeading;
+      detailsPanel.style.opacity = '1';
+    });
+  }
+
+  Object.keys(triggers).forEach(function(zoneKey) {
+    var elem = triggers[zoneKey];
+    if (elem) {
+      elem.addEventListener('click', function() {
+        if (isTransitioning) return;
+        isTransitioning = true;
+
+        playSwitchThrowSound();
+        triggerHaptic(40);
+
+        if (activeZone === zoneKey) {
+          elem.classList.remove('active-selected');
+          activeZone = null;
+          closePanel(function() { isTransitioning = false; });
+        } else {
+          if (activeZone && triggers[activeZone]) {
+            triggers[activeZone].classList.remove('active-selected');
+          }
+          
+          elem.classList.add('active-selected');
+          var prevZone = activeZone;
+          activeZone = zoneKey;
+
+          if (prevZone) {
+            closePanel(function() {
+              openPanelForZone(zoneKey);
+              isTransitioning = false;
+            });
+          } else {
+            openPanelForZone(zoneKey);
+            isTransitioning = false;
+          }
+        }
+      });
+    }
+  });
+
+});
+</script>
+</body>
+</html>
